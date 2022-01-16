@@ -52,7 +52,7 @@ int main(int argc , char const *argv[]) {
     printf("connexion établie\n");
 
         
-
+    int temp = 0; //Variable temporaire de debug
     //Fonction void 
     while (statutjeu == 1) { //
           
@@ -60,13 +60,18 @@ int main(int argc , char const *argv[]) {
         nbRecu = recv(fdSocket, tampon, MAX_BUFFER, 0); //En attente du serveur :
             //Quand le client recoit un message du serveur
         if (nbRecu > 0) {
-
+               
             if((strstr(tampon,"Bievenue au jeu du PENDU !\n") )|| (strstr(tampon,"\nRedemarrage de la partie !\n")) )  //Message d'accueil ou de relancement d'une partie
             {
-                     send(fdSocket, "ok", 3, 0); //Envoie du message ok
-                     printf("\n%s", tampon); //Affichage du message
+                     tampon[nbRecu] = 0;
+                   
+                    if(temp == 0) send(fdSocket, "ok", 3, 0); //Envoie du message ok
+                     printf("%s\n", tampon); //Affichage du message
+                     
                      nbRecu = recv(fdSocket, tampon, MAX_BUFFER, 0); //En attente du premier mot
-                     printf("\nLe mot : %s",tampon); //Affichage du mot masqué envoye par le serveur
+                     tampon[nbRecu] = 0;
+                     printf("\nLe mot : %s\n",tampon); //Affichage du mot masqué envoye par le serveur
+                     temp = 2;
             } 
                 //Sinon
             else
