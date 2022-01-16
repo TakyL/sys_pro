@@ -60,7 +60,7 @@ int recherche_lettre(char lettre, char *motPioche, char *verif_lettre); //Recher
 
 int main(int argc, char const *argv[])
 {
-    int demande_mot; //Demande de mot lors d'une relance
+    int demande_mot =0; //Demande de mot lors d'une relance
     char *verif_lettre = NULL; //Permet de verifier une lettre
     int relancer = 1; //1 quand il veut rejouer sinon 0
     etatjeu = 1;      
@@ -68,6 +68,9 @@ int main(int argc, char const *argv[])
     int longueurAdresse;
     int pid;
     char *copie_mot = (char *)malloc(taille * sizeof(char)); //Varaible qui sert à copie le mot joué
+    char *mot_brut = (char *)malloc(taille * sizeof(char)); //Variable qui sert à garder le mot brut joueur
+    int coup=3; // Nombre de coup pour le joueur (variable temporaire)
+
 
     liste_joueur *lj; // Liste des joueurs
     //initjoueur(lj); //Initialisation de la liste
@@ -135,25 +138,45 @@ int main(int argc, char const *argv[])
                 if (nbRecu > 0)
                 {
                     tampon[nbRecu] = 0; //Vide le buffer pour affichage
-                    printf("Tampon : %s", tampon);
+                    printf("Tampon : %s\n", tampon);
 
-                    if ((strstr(tampon,"ok")) || (demande_mot = 1)) //Demande de mot
+                    if ((demande_mot == 1)||(strstr(tampon,"ok")&&demande_mot==0)) //Demande de mot
                     {
-                        if(demande_mot == 1) send(fdSocketCommunication,"\nRedemarrage de la partie !\n",29,0); //Envoie un message (effet similaire à la ligne 123)
+                       // printf("ETAT %d\n",demande_mot);
+                        /*
+                        if(demande_mot == 1) 
+                        {
+                            send(fdSocketCommunication,"\nRedemarrage de la partie !\n",29,0); //Envoie un message (effet similaire à la ligne 123)
+                            demande_mot = 0;
+                        }*/
                         recherchemot(motchoisit, fdSocketCommunication); //Recherche un mot dans le dictionnaire
+                        
                         verif_lettre = malloc(strlen(motchoisit) * sizeof(int));
+                        mot_brut = malloc(strlen(motchoisit) * sizeof(int));
+
+                        strcpy(mot_brut, motchoisit); //Récupère la valeur du brut du masque
+                      //  printf("JE DEBUG1 %s:%s\n",motchoisit,mot_brut);
+
                         masque_mot(motchoisit); //Applique un masque ***
+                        //printf("JE DEBUG2\n");
                         send(fdSocketCommunication, motchoisit, strlen(motchoisit) - 1, 0); //Envoie le mot caché au joueur
+                       
+                       // printf("ETAT2 %d\n",demande_mot);
+                        demande_mot = 0;
                     }
                     else if (nbRecu == 1) //Le joueur joue
                     {
-                        
-                        if (!recherche_lettre(tampon[nbRecu], motchoisit, verif_lettre)) //Si lettre jouée pas présente
+                        //printf("JE DEBUG2 : %d:%s:%s\n", tampon[nbRecu], motchoisit, verif_lettre);
+                        if (!recherche_lettre(tampon[nbRecu], mot_brut, verif_lettre)) //Si lettre jouée pas présente
                         {
-                            lj->jo->vie--;
+                           // printf("PAS PRESENTE\n");
+                           // lj->jo->vie--;
+                            coup--;
+                            send(fdSocketCommunication,motchoisit,strlen(motchoisit)-1,0);
                         }
                         else //Lettre présente + On renvoie le mot
                         {
+                            //printf("PRESENTE\n");
                             //Copie la réponse
 
                             if (copie_mot != NULL) strcpy(copie_mot, tampon);
@@ -166,13 +189,16 @@ int main(int argc, char const *argv[])
                                     copie_mot[o] = '*'; //Par securite
                             }
                             //Renvoie
+                           // printf("Verif debug 3 %s\n",copie_mot);
                             send(fdSocketCommunication, copie_mot, strlen(copie_mot) - 1, 0);
-                        }
-                        //Si le joueur gagne
-                        if (verif_statut(verif_lettre, strlen(motchoisit)) && lj->jo->vie > 0)
+
+                             //Si le joueur gagne
+                            //if (verif_statut(verif_lettre, strlen(motchoisit)) && lj->jo->vie > 0)
+                        if(verif_statut(verif_lettre, strlen(motchoisit)) && coup > 0)
                         {
-                            printf("\n %s a gagne !", inet_ntoa(coordonneesAppelant.sin_addr));
-                            tampon[0] = 0;
+                            //printf("CDT1\n");
+                            printf("\n %s a gagne !\n", inet_ntoa(coordonneesAppelant.sin_addr));
+                           
                             
                             send(fdSocketCommunication, "Vous avez gagne !\n", 20, 0);
                             etatjeu = 0;
@@ -180,13 +206,17 @@ int main(int argc, char const *argv[])
                         //Si le joueur perd
                         else
                         {
-                            printf("\n %s a perdu !", inet_ntoa(coordonneesAppelant.sin_addr));
-                            tampon[0] = 0;
+                           // printf("CDT2\n");
+                            printf("\n %s a perdu !\n", inet_ntoa(coordonneesAppelant.sin_addr));
+                            
                            
                             send(fdSocketCommunication, "Vous avez perdu !\n", 19, 0);
                             etatjeu = 0;
                         }
-                    }
+
+                        }//Fin boucle else 
+                       
+                    }//Fin boucle joueur qui joue une lettre
 
                     //printf("Recu : %d \n", nbRecu);
                 } //Fin de reception : joueur 
@@ -194,7 +224,7 @@ int main(int argc, char const *argv[])
                 //Quand le joueur a fini une partie
                 if (etatjeu == 0)
                 {
-                    printf("Demande de relance au joueur :%s : %d/n", inet_ntoa(coordonneesAppelant.sin_addr), ntohs(coordonneesAppelant.sin_port)); 
+                    printf("Demande de relance au joueur :%s : %d\n", inet_ntoa(coordonneesAppelant.sin_addr), ntohs(coordonneesAppelant.sin_port)); 
                     
                     char *demande = "Voulez-vous rejouez ? y/n\n";
 
@@ -205,6 +235,7 @@ int main(int argc, char const *argv[])
                     //controle sa réponse
                     if (strstr(tampon, "y")) //Si il repond y 
                     {
+                        printf("COUCOU\n");
                         etatjeu = 1;
                         relancer = 1;
                         demande_mot = 1;
@@ -298,7 +329,8 @@ liste_j->jo.statut =2;
 
 char *masque_mot(char *mot) //Permet de masquer un mot
 {
-    for (int i = 0; i <= strlen(mot); i++)
+    //printf("%s\n",mot);
+    for (int i = 0; mot[i] != '\0'; i++)
     {
         mot[i] = '*';
     }
@@ -321,8 +353,8 @@ void recherchemot(char *motPioche, int fdSocketCommunication) //Fonction de rech
 
     if (fichier == NULL)
     {
-        printf("Erreur lors du chargement du fichier");
-        send(fdSocketCommunication, "Erreur lors du chargement du fichier", 37, 0);
+        printf("Erreur lors du chargement du fichier\n");
+        send(fdSocketCommunication, "Erreur lors du chargement du fichier\n", 38, 0);
     }
 
     nbmot = total_mot_fichier(fichier, nbmot, carLu);
@@ -373,7 +405,7 @@ void affichage_liste_joueur(liste_joueur *liste_j)
     printf("%d Utilisateurs dans le jeu\n", liste_j->idjoueur);
     for (int i = 0; i < liste_j->idjoueur; i++)
     {
-        printf("--Liste des joueurs--\n IP:%s Vies restantes:%i", inet_ntoa(coordonneesAppelant.sin_addr), liste_j->jo->vie);
+        printf("--Liste des joueurs--\n IP:%s Vies restantes:%i\n", inet_ntoa(coordonneesAppelant.sin_addr), liste_j->jo->vie);
     }
 }
 
@@ -391,7 +423,7 @@ int verif_statut(char verif_lettre[], int lon_mot) //Determine si le joueur gagn
 
 int recherche_lettre(char lettre, char *motPioche, char *verif_lettre) //Recherche si la lettre joué appartient au mot
 {
-
+    //printf("init recherchelettre : %c,%s,%s\n",lettre,motPioche,verif_lettre);
     int pos = 0;
     for (int i = 0; motPioche[i] != '\0'; i++) //Boucle qui permet de voir jusqu'à la fin du mot (cf butée)
     {
@@ -401,5 +433,6 @@ int recherche_lettre(char lettre, char *motPioche, char *verif_lettre) //Recherc
             pos = i;
         }
     }
+  //  printf("debug recherchelettre : %d\n",pos);
     return pos;
 }
