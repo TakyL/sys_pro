@@ -80,8 +80,12 @@ int main(int argc , char const *argv[]) {
             printf("Recu : %s\n", tampon);
                 //Comparaison arrêt du jeu 
             if(strstr(tampon,"FIN DU JEU DU PENDU \n")) statutjeu = 0;
-
-
+            if((strstr(tampon,"Vous avez perdu !\n"))||(strstr(tampon,"Vous avez gagne !\n")))
+            {
+                 nbRecu = recv(fdSocket,tampon,MAX_BUFFER,0);
+                 tampon[nbRecu] = 0;
+                printf("Le serveur demande : %s\n",tampon);
+            }
                 //On quitte la boucle
             if (testQuitter(tampon)) {   break; }
             }
